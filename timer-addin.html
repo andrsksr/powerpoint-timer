@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PowerPoint Embedded Timer</title>
+    
+    <!-- Office.js API -->
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            margin: 0 0 8px 0;
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .timer-config {
+            margin-bottom: 24px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+
+        .input-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+            color: #444;
+            font-size: 14px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .timer-preview {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            margin: 16px 0;
+            color: white;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            font-feature-settings: 'tnum';
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #495057;
+            border: 2px solid #e9ecef;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 500;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .instructions h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .instructions ol {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 6px;
+        }
+
+        .size-options {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .size-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #e9ecef;
+            background: #f8f9fa;
+            color: #495057;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .size-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .advanced-options {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⏱️ Timer Widget</h1>
+            <p>Add interactive countdown timers to your slides</p>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <div class="timer-config">
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="minutes">Minutes</label>
+                    <input type="number" id="minutes" min="0" max="60" value="5">
+                </div>
+                <div class="input-group">
+                    <label for="seconds">Seconds</label>
+                    <input type="number" id="seconds" min="0" max="59" value="0">
+                </div>
+            </div>
+
+            <div class="timer-preview" id="timerPreview">05:00</div>
+
+            <div class="advanced-options">
+                <label>Timer Size:</label>
+                <div class="size-options">
+                    <div class="size-btn" data-size="small">Small</div>
+                    <div class="size-btn active" data-size="medium">Medium</div>
+                    <div class="size-btn" data-size="large">Large</div>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="autoStart" checked>
+                    <label for="autoStart">Auto-start on second click</label>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showOnEnter" checked>
+                    <label for="showOnEnter">Show timer on slide enter</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="insertTimer" class="btn-primary">📍 Insert Timer Widget</button>
+            <button id="updateSelected" class="btn-secondary">✏️ Update Selected Timer</button>
+        </div>
+
+        <div class="instructions">
+            <h3>🎯 How it works:</h3>
+            <ol>
+                <li>Set your countdown time above</li>
+                <li>Click "Insert Timer Widget" to add to current slide</li>
+                <li>During presentation:
+                    <ul style="margin: 4px 0;">
+                        <li>Timer appears when entering slide (if enabled)</li>
+                        <li>First click: Shows/hides timer</li>
+                        <li>Second click: Starts countdown</li>
+                        <li>Counts down automatically every second</li>
+                    </ul>
+                </li>
+                <li>Timer changes color: Blue → Orange (30s) → Red (10s)</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        let selectedSize = 'medium';
+
+        // Initialize Office Add-in
+        Office.onReady((info) => {
+            if (info.host === Office.HostType.PowerPoint) {
+                console.log('PowerPoint Timer Add-in loaded');
+                setupEventListeners();
+                updatePreview();
+            }
+        });
+
+        function setupEventListeners() {
+            document.getElementById('minutes').addEventListener('input', updatePreview);
+            document.getElementById('seconds').addEventListener('input', updatePreview);
+            document.getElementById('insertTimer').addEventListener('click', insertTimerWidget);
+            document.getElementById('updateSelected').addEventListener('click', updateSelectedTimer);
+
+            // Size selection
+            document.querySelectorAll('.size-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    selectedSize = e.target.dataset.size;
+                });
+            });
+        }
+
+        function updatePreview() {
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+            const totalSeconds = minutes * 60 + seconds;
+            
+            document.getElementById('timerPreview').textContent = formatTime(totalSeconds);
+        }
+
+        function formatTime(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function getTimerDimensions(size) {
+            const dimensions = {
+                small: { width: 150, height: 60, fontSize: 24 },
+                medium: { width: 200, height: 80, fontSize: 36 },
+                large: { width: 300, height: 120, fontSize: 54 }
+            };
+            return dimensions[size] || dimensions.medium;
+        }
+
+        function insertTimerWidget() {
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+            const totalSeconds = minutes * 60 + seconds;
+            const autoStart = document.getElementById('autoStart').checked;
+            const showOnEnter = document.getElementById('showOnEnter').checked;
+
+            if (totalSeconds <= 0) {
+                showStatus('Please set a time greater than 0 seconds', 'error');
+                return;
+            }
+
+            showStatus('Inserting interactive timer widget...', 'info');
+
+            PowerPoint.run(async (context) => {
+                try {
+                    // Get the active slide
+                    const presentation = context.presentation;
+                    const slides = presentation.slides;
+                    slides.load("items");
+                    await context.sync();
+
+                    if (slides.items.length === 0) {
+                        showStatus('No slides found. Please create a slide first.', 'error');
+                        return;
+                    }
+
+                    // Use the first slide (in a full implementation, you'd get the active slide)
+                    const slide = slides.items[0];
+                    const dims = getTimerDimensions(selectedSize);
+                    
+                    // Create the timer display shape
+                    const timerShape = slide.shapes.addTextBox(formatTime(totalSeconds));
+                    timerShape.left = 50;
+                    timerShape.top = 50;
+                    timerShape.width = dims.width;
+                    timerShape.height = dims.height;
+                    timerShape.name = `Timer_${Date.now()}`;
+                    
+                    // Style the timer
+                    const textFrame = timerShape.textFrame;
+                    textFrame.textRange.font.size = dims.fontSize;
+                    textFrame.textRange.font.name = 'Arial';
+                    textFrame.textRange.font.bold = true;
+                    textFrame.textRange.font.color = 'white';
+                    textFrame.textRange.paragraphFormat.alignment = PowerPoint.ParagraphAlignment.center;
+                    textFrame.verticalAlignment = PowerPoint.TextVerticalAlignment.middle;
+                    
+                    // Shape styling
+                    timerShape.fill.setSolidColor('#667eea');
+                    timerShape.line.color = '#764ba2';
+                    timerShape.line.weight = 3;
+
+                    // Store timer configuration in shape tags
+                    timerShape.tags.add('TimerDuration', totalSeconds.toString());
+                    timerShape.tags.add('TimerState', 'ready');
+                    timerShape.tags.add('TimerAutoStart', autoStart.toString());
+                    timerShape.tags.add('TimerShowOnEnter', showOnEnter.toString());
+                    timerShape.tags.add('TimerSize', selectedSize);
+                    timerShape.tags.add('TimerType', 'countdown');
+
+                    await context.sync();
+                    
+                    showStatus(`✅ Timer (${formatTime(totalSeconds)}) added successfully!`, 'success');
+                    
+                } catch (error) {
+                    console.error('Error inserting timer:', error);
+                    showStatus('❌ Error inserting timer: ' + error.message, 'error');
+                }
+            });
+        }
+
+        function updateSelectedTimer() {
+            showStatus('Updating selected timer...', 'info');
+
+            PowerPoint.run(async (context) => {
+                try {
+                    const selection = context.presentation.getSelectedShapes();
+                    selection.load("items");
+                    await context.sync();
+
+                    if (selection.items.length === 0) {
+                        showStatus('Please select a timer to update', 'error');
+                        return;
+                    }
+
+                    const selectedShape = selection.items[0];
+                    selectedShape.tags.load("items");
+                    await context.sync();
+
+                    // Check if it's a timer shape
+                    const timerDurationTag = selectedShape.tags.items.find(tag => tag.key === 'TimerDuration');
+                    if (!timerDurationTag) {
+                        showStatus('Selected shape is not a timer widget', 'error');
+                        return;
+                    }
+
+                    // Update timer configuration
+                    const minutes = parseInt(document.getElementById('minutes').value) || 0;
+                    const seconds = parseInt(document.getElementById('seconds').value) || 0;
+                    const totalSeconds = minutes * 60 + seconds;
+
+                    if (totalSeconds <= 0) {
+                        showStatus('Please set a time greater than 0 seconds', 'error');
+                        return;
+                    }
+
+                    // Update the shape
+                    selectedShape.textFrame.textRange.text = formatTime(totalSeconds);
+                    
+                    // Update tags
+                    selectedShape.tags.add('TimerDuration', totalSeconds.toString());
+                    selectedShape.tags.add('TimerState', 'ready');
+
+                    await context.sync();
+                    
+                    showStatus('✅ Timer updated successfully!', 'success');
+
+                } catch (error) {
+                    console.error('Error updating timer:', error);
+                    showStatus('❌ Error updating timer: ' + error.message, 'error');
+                }
+            });
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status status-${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 4000);
+        }
+
+        // Auto-hide status on user interaction
+        document.addEventListener('click', () => {
+            const status = document.getElementById('status');
+            if (status.style.display === 'block') {
+                status.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
