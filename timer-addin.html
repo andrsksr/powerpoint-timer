@@ -255,7 +255,7 @@
             <h1>⏱️ Timer</h1>
             <p>Professional countdown timer for PowerPoint</p>
             <div style="background: #f0f0f0; padding: 8px; border-radius: 4px; margin: 10px 0; font-size: 12px; color: #666;">
-                Version: 1.0.1.3 | Loaded: <span id="loadTime"></span>
+                Version: 1.0.1.4 | Loaded: <span id="loadTime"></span>
             </div>
         </div>
 
@@ -631,26 +631,33 @@
                 
                 function tryPowerPointDesktopInsertion(html) {
                     // Show status in UI since no console
-                    document.getElementById('insertStatus').textContent = 'Trying PowerPoint Desktop HTML insertion...';
+                    document.getElementById('insertStatus').textContent = 'Trying PowerPoint Desktop insertion...';
                     
                     if (Office.context.document.setSelectedDataAsync) {
-                        Office.context.document.setSelectedDataAsync(
-                            html,
-                            { coercionType: Office.CoercionType.Html },
-                            function(result) {
-                                if (result.status === Office.AsyncResultStatus.Succeeded) {
-                                    document.getElementById('insertStatus').textContent = '✅ Timer successfully inserted!';
-                                    document.getElementById('insertStatus').style.color = 'green';
-                                } else {
-                                    document.getElementById('insertStatus').textContent = '❌ Insertion failed: ' + (result.error ? result.error.message : 'Unknown error');
-                                    document.getElementById('insertStatus').style.color = 'red';
-                                }
-                            }
-                        );
+                        // Try different coercion types
+                        tryCoercionType(html, Office.CoercionType.Text, 'Text');
                     } else {
                         document.getElementById('insertStatus').textContent = '❌ setSelectedDataAsync not available';
                         document.getElementById('insertStatus').style.color = 'red';
                     }
+                }
+                
+                function tryCoercionType(html, coercionType, typeName) {
+                    document.getElementById('insertStatus').textContent = 'Trying ' + typeName + ' insertion...';
+                    
+                    Office.context.document.setSelectedDataAsync(
+                        html,
+                        { coercionType: coercionType },
+                        function(result) {
+                            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                                document.getElementById('insertStatus').textContent = '✅ Timer inserted as ' + typeName + '!';
+                                document.getElementById('insertStatus').style.color = 'green';
+                            } else {
+                                document.getElementById('insertStatus').textContent = '❌ ' + typeName + ' insertion failed: ' + (result.error ? result.error.message : 'Unknown error');
+                                document.getElementById('insertStatus').style.color = 'red';
+                            }
+                        }
+                    );
                 }
                 
                 function tryPowerPointOnlineInsertion(html) {
@@ -792,7 +799,7 @@
         if (typeof Office !== 'undefined') {
             Office.onReady(function(info) {
                 console.log('Office ready');
-                console.log('=== TIMER ADD-IN VERSION 1.0.1.3 ===');
+                console.log('=== TIMER ADD-IN VERSION 1.0.1.4 ===');
                 console.log('Current time:', new Date().toISOString());
                 console.log('Office host:', info.host);
                 console.log('Office platform:', info.platform);
@@ -820,7 +827,7 @@
                 }
             });
         } else {
-            console.log('=== TIMER ADD-IN VERSION 1.0.1.3 (NO OFFICE) ===');
+            console.log('=== TIMER ADD-IN VERSION 1.0.1.4 (NO OFFICE) ===');
             console.log('Current time:', new Date().toISOString());
         }
     </script>
