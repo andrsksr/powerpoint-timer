@@ -250,7 +250,7 @@
             <h1>⏱️ Timer</h1>
             <p>Professional countdown timer for PowerPoint</p>
             <div style="background: #f0f0f0; padding: 8px; border-radius: 4px; margin: 10px 0; font-size: 12px; color: #666;">
-                Version: 1.0.0.7 | Loaded: <span id="loadTime"></span>
+                Version: 1.0.0.8 | Loaded: <span id="loadTime"></span>
             </div>
         </div>
 
@@ -756,7 +756,7 @@
         if (typeof Office !== 'undefined') {
             Office.onReady(function(info) {
                 console.log('Office ready');
-                console.log('=== TIMER ADD-IN VERSION 1.0.0.7 ===');
+                console.log('=== TIMER ADD-IN VERSION 1.0.0.8 ===');
                 console.log('Current time:', new Date().toISOString());
                 console.log('Office host:', info.host);
                 console.log('Office platform:', info.platform);
@@ -784,7 +784,7 @@
                 }
             });
         } else {
-            console.log('=== TIMER ADD-IN VERSION 1.0.0.7 (NO OFFICE) ===');
+            console.log('=== TIMER ADD-IN VERSION 1.0.0.8 (NO OFFICE) ===');
             console.log('Current time:', new Date().toISOString());
         }
     </script>
