@@ -24,7 +24,7 @@
 
   <!-- UPDATE: Replace YOUR-USERNAME with your actual GitHub username -->
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://andrsksr.github.io/powerpoint-timer/timer-addin.html"/>
+    <SourceLocation DefaultValue="https://andrsksr.github.io/powerpoint-timer/timer-addin.html?v=1.0.0.4"/>
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>
@@ -82,7 +82,7 @@
       <bt:Urls>
         <!-- UPDATE: Replace YOUR-USERNAME with your actual GitHub username -->
         <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://github.com/andrsksr/powerpoint-timer" />
-        <bt:Url id="Taskpane.Url" DefaultValue="https://andrsksr.github.io/powerpoint-timer/timer-addin.html" />
+        <bt:Url id="Taskpane.Url" DefaultValue="https://andrsksr.github.io/powerpoint-timer/timer-addin.html?v=1.0.0.4" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GetStarted.Title" DefaultValue="Get started with Timer Add-in!" />
