@@ -603,18 +603,24 @@
                 
                 var timerHTML = createTimerHTML(totalSeconds, timerColor, textColor, ringColor, warningTime, criticalTime, size);
                 
-                if (typeof Office !== 'undefined' && Office.context && Office.context.document) {
-                    Office.context.document.setSelectedDataAsync(
-                        timerHTML,
-                        { coercionType: Office.CoercionType.Html },
-                        function(result) {
-                            if (result.status === Office.AsyncResultStatus.Succeeded) {
-                                console.log('Timer successfully inserted!');
-                            } else {
-                                console.log('Error inserting: ' + (result.error ? result.error.message : 'Office API not available'));
+                if (typeof Office !== 'undefined' && Office.context && Office.context.document && Office.context.document.setSelectedDataAsync) {
+                    // Check if we're in a supported host
+                    if (Office.context.document.getSelectedDataAsync) {
+                        Office.context.document.setSelectedDataAsync(
+                            timerHTML,
+                            { coercionType: Office.CoercionType.Html },
+                            function(result) {
+                                if (result.status === Office.AsyncResultStatus.Succeeded) {
+                                    console.log('Timer successfully inserted!');
+                                } else {
+                                    console.log('Error inserting: ' + (result.error ? result.error.message : 'Office API error'));
+                                }
                             }
-                        }
-                    );
+                        );
+                    } else {
+                        console.log('setSelectedDataAsync not supported in this host. Timer HTML created:');
+                        console.log(timerHTML);
+                    }
                 } else {
                     console.log('Office API not available. Timer HTML created:');
                     console.log(timerHTML);
