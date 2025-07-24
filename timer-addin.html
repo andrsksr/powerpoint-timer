@@ -69,6 +69,7 @@
         .timer-preview {
             text-align: center;
             margin: 24px 0;
+            position: relative;
         }
 
         .timer-circle {
@@ -79,32 +80,81 @@
             border-radius: 50%;
             background: #001B2E;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            border: 3px solid #333;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .timer-circle:hover {
+            transform: scale(1.05);
         }
 
         .timer-display {
             font-size: 28px;
             font-weight: bold;
             color: white;
+            z-index: 2;
         }
 
         .progress-ring {
             position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 144px;
-            height: 144px;
+            top: 2px;
+            left: 2px;
+            width: 146px;
+            height: 146px;
             transform: rotate(-90deg);
         }
 
         .progress-circle {
             fill: none;
             stroke: #DCF98F;
-            stroke-width: 6;
-            stroke-linecap: butt;
+            stroke-width: 4;
+            stroke-linecap: round;
             transition: stroke-dashoffset 0.3s ease;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin-top: 4px;
+            position: relative;
+            z-index: 1000;
+            pointer-events: auto;
+        }
+        .preview-control-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: color 0.2s ease;
+            padding: 2px;
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            min-height: 20px;
+            position: relative;
+            z-index: 1000;
+            pointer-events: auto;
+        }
+        .preview-control-btn:hover {
+            color: #DCF98F;
+        }
+
+        .preview-status {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
         }
 
         .size-buttons {
@@ -187,13 +237,10 @@
             border: 2px solid #ddd;
         }
 
-        .debug {
-            margin-top: 20px;
-            padding: 10px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
@@ -218,12 +265,19 @@
         <div class="timer-preview">
             <div class="timer-circle" id="timerCircle">
                 <div class="progress-ring">
-                    <svg width="144" height="144">
-                        <circle cx="72" cy="72" r="68" class="progress-circle" id="progressCircle"></circle>
+                    <svg width="146" height="146">
+                        <circle cx="73" cy="73" r="70" class="progress-circle" id="progressCircle"></circle>
                     </svg>
                 </div>
                 <div class="timer-display" id="timerDisplay">05:00</div>
+                
+                <div class="preview-controls">
+                    <div class="preview-control-btn" onclick="console.log('Start clicked'); previewStart(); return false;" title="Start">▶</div>
+                    <div class="preview-control-btn" onclick="console.log('Pause clicked'); previewPause(); return false;" title="Pause">⏸</div>
+                    <div class="preview-control-btn" onclick="console.log('Stop clicked'); previewStop(); return false;" title="Stop">⏹</div>
+                </div>
             </div>
+            <div class="preview-status">Click timer to start/pause, or use controls below</div>
         </div>
 
         <div class="size-buttons">
@@ -267,208 +321,414 @@
     </div>
 
     <script>
-        let currentSize = 'medium';
-        let testInterval = null;
+        // GLOBAL VARIABLES
+        var currentSize = 'medium';
+        var previewInterval = null;
+        var testInterval = null;
+        var previewTimeLeft = 0;
+        var previewTotalTime = 0;
+        var previewIsRunning = false;
 
-        // Simple debug function (removed for production)
-        function debug(message) {
-            // Debug messages removed for clean production version
-        }
-
-        // Update timer display when inputs change
-        function updateTimerDisplay() {
-            const minutes = parseInt(document.getElementById('minutes').value) || 0;
-            const seconds = parseInt(document.getElementById('seconds').value) || 0;
-            const totalSeconds = minutes * 60 + seconds;
-            
-            const display = document.getElementById('timerDisplay');
-            const timeString = formatTime(totalSeconds);
-            display.textContent = timeString;
-            // Debug removed for production
-        }
-
-        // Format seconds to MM:SS
+        // HELPER FUNCTIONS
         function formatTime(totalSeconds) {
-            const mins = Math.floor(totalSeconds / 60);
-            const secs = totalSeconds % 60;
+            var mins = Math.floor(totalSeconds / 60);
+            var secs = totalSeconds % 60;
             return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
         }
 
-        // Change timer size
+        function updateDisplay() {
+            var minutes = parseInt(document.getElementById('minutes').value) || 0;
+            var seconds = parseInt(document.getElementById('seconds').value) || 0;
+            var totalSeconds = minutes * 60 + seconds;
+            
+            if (!previewIsRunning && previewTimeLeft === 0) {
+                document.getElementById('timerDisplay').textContent = formatTime(totalSeconds);
+            }
+        }
+
+        function updateColors() {
+            var timerColor = document.getElementById('timerColor').value;
+            var textColor = document.getElementById('textColor').value;
+            var ringColor = document.getElementById('ringColor').value;
+            
+            var circle = document.getElementById('timerCircle');
+            var display = document.getElementById('timerDisplay');
+            var ring = document.getElementById('progressCircle');
+            
+            if (circle) circle.style.background = timerColor;
+            if (display) display.style.color = textColor;
+            if (ring) ring.style.stroke = ringColor;
+        }
+
+        function getSizeConfig(size) {
+            if (size === 'small') {
+                return { circleSize: 120, fontSize: '24px', ringSize: 116, radius: 56, strokeWidth: 3, controlSize: '14px' };
+            } else if (size === 'large') {
+                return { circleSize: 200, fontSize: '36px', ringSize: 196, radius: 94, strokeWidth: 6, controlSize: '20px' };
+            } else {
+                return { circleSize: 150, fontSize: '28px', ringSize: 146, radius: 70, strokeWidth: 4, controlSize: '16px' };
+            }
+        }
+
+        // SIZE FUNCTIONS
         function changeSize(size) {
             currentSize = size;
             
-            // Update active button
-            document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            const circle = document.getElementById('timerCircle');
-            const display = document.getElementById('timerDisplay');
-            const progressRing = document.querySelector('.progress-ring');
-            const svg = progressRing.querySelector('svg');
-            const progressCircles = progressRing.querySelectorAll('circle');
-            
-            let circleSize, fontSize, ringSize, radius, strokeWidth;
-            
-            if (size === 'small') {
-                circleSize = 100;
-                fontSize = '18px';
-                ringSize = 94;  // Closer to edge - was 92
-                radius = 44;    // Adjusted for closer fit
-                strokeWidth = 4;
-            } else if (size === 'large') {
-                circleSize = 200;
-                fontSize = '36px';
-                ringSize = 192;
-                radius = 92;
-                strokeWidth = 8;
-            } else { // medium
-                circleSize = 150;
-                fontSize = '28px';
-                ringSize = 142;
-                radius = 67;
-                strokeWidth = 6;
+            var buttons = document.querySelectorAll('.size-btn');
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('active');
+                if (buttons[i].textContent.toLowerCase() === size.toLowerCase()) {
+                    buttons[i].classList.add('active');
+                }
             }
             
-            // Update timer circle
-            circle.style.width = circleSize + 'px';
-            circle.style.height = circleSize + 'px';
-            display.style.fontSize = fontSize;
+            var circle = document.getElementById('timerCircle');
+            var display = document.getElementById('timerDisplay');
+            var ring = document.querySelector('.progress-ring');
+            var svg = ring.querySelector('svg');
+            var progressCircle = ring.querySelector('circle');
             
-            // Update progress ring - position INSIDE the circle
-            progressRing.style.width = ringSize + 'px';
-            progressRing.style.height = ringSize + 'px';
+            var config = getSizeConfig(size);
             
-            // Smaller margin for small size, 4px for others
-            const margin = (size === 'small') ? '3px' : '4px';
-            progressRing.style.top = margin;
-            progressRing.style.left = margin;
+            circle.style.width = config.circleSize + 'px';
+            circle.style.height = config.circleSize + 'px';
+            display.style.fontSize = config.fontSize;
             
-            // Update SVG size
-            svg.setAttribute('width', ringSize);
-            svg.setAttribute('height', ringSize);
+            // Update control button sizes and positioning
+            var controlBtns = document.querySelectorAll('.preview-control-btn');
+            var controlWidth = Math.max(20, parseInt(config.fontSize) * 0.6);
+            var controlGap = Math.max(4, parseInt(config.fontSize) * 0.15);
+            var controlsContainer = document.querySelector('.preview-controls');
+            var isLarge = config.circleSize >= 200;
+            var controlsWidth = isLarge ? parseInt(config.fontSize) * 2.8 : (controlWidth * 3 + controlGap * 2);
+            var justifyStyle = isLarge ? 'space-between' : 'center';
             
-            // Update circles (now just one circle)
-            const center = ringSize / 2;
-            const progressCircle = progressRing.querySelector('circle');
+            controlsContainer.style.width = controlsWidth + 'px';
+            controlsContainer.style.gap = controlGap + 'px';
+            controlsContainer.style.justifyContent = justifyStyle;
+            
+            for (var i = 0; i < controlBtns.length; i++) {
+                controlBtns[i].style.fontSize = config.controlSize;
+                controlBtns[i].style.width = controlWidth + 'px';
+                controlBtns[i].style.height = controlWidth + 'px';
+            }
+            
+            ring.style.width = config.ringSize + 'px';
+            ring.style.height = config.ringSize + 'px';
+            
+            svg.setAttribute('width', config.ringSize);
+            svg.setAttribute('height', config.ringSize);
+            
+            var center = config.ringSize / 2;
             progressCircle.setAttribute('cx', center);
             progressCircle.setAttribute('cy', center);
-            progressCircle.setAttribute('r', radius);
-            progressCircle.style.strokeWidth = strokeWidth;
-            
-            // Debug removed for production
+            progressCircle.setAttribute('r', config.radius);
+            progressCircle.style.strokeWidth = config.strokeWidth;
         }
 
-        // Update colors
-        function updateColors() {
-            const timerColor = document.getElementById('timerColor').value;
-            const textColor = document.getElementById('textColor').value;
-            const ringColor = document.getElementById('ringColor').value;
-            
-            const circle = document.getElementById('timerCircle');
-            const display = document.getElementById('timerDisplay');
-            const ring = document.getElementById('progressCircle');
-            
-            circle.style.background = timerColor;
-            circle.style.borderColor = timerColor; // Make border match background
-            display.style.color = textColor;
-            ring.style.stroke = ringColor;
+        // PREVIEW FUNCTIONS
+        function previewToggle() {
+            if (previewIsRunning) {
+                previewPause();
+            } else if (previewTimeLeft > 0) {
+                previewStart();
+            } else {
+                // Only start if no time is set or if we're at 0
+                var minutes = parseInt(document.getElementById('minutes').value) || 0;
+                var seconds = parseInt(document.getElementById('seconds').value) || 0;
+                if (minutes > 0 || seconds > 0) {
+                    previewStart();
+                }
+            }
         }
 
-        // Test animation
+        function previewStart() {
+            if (previewTimeLeft === 0) {
+                var minutes = parseInt(document.getElementById('minutes').value) || 0;
+                var seconds = parseInt(document.getElementById('seconds').value) || 0;
+                previewTimeLeft = minutes * 60 + seconds;
+                previewTotalTime = previewTimeLeft;
+            }
+            
+            if (previewTimeLeft <= 0) {
+                alert('Please set a time greater than 0!');
+                return;
+            }
+            
+            previewIsRunning = true;
+            
+            var progressCircle = document.getElementById('progressCircle');
+            var radius = getSizeConfig(currentSize).radius;
+            var circumference = 2 * Math.PI * radius;
+            progressCircle.style.strokeDasharray = circumference;
+            
+            previewInterval = setInterval(function() {
+                if (previewTimeLeft <= 0) {
+                    clearInterval(previewInterval);
+                    previewIsRunning = false;
+                    
+                    var circle = document.getElementById('timerCircle');
+                    circle.style.background = '#FF0000';
+                    circle.style.animation = 'pulse 1s infinite';
+                    return;
+                }
+                
+                previewTimeLeft--;
+                document.getElementById('timerDisplay').textContent = formatTime(previewTimeLeft);
+                
+                var progress = previewTimeLeft / previewTotalTime;
+                var offset = circumference * (1 - progress);
+                progressCircle.style.strokeDashoffset = offset;
+                
+                var warningMinutes = parseInt(document.getElementById('warningTime').value) || 1;
+                var criticalSeconds = parseInt(document.getElementById('criticalTime').value) || 10;
+                var warningSeconds = warningMinutes * 60;
+                
+                var circle = document.getElementById('timerCircle');
+                if (previewTimeLeft <= criticalSeconds) {
+                    circle.style.background = '#FF4444';
+                } else if (previewTimeLeft <= warningSeconds) {
+                    circle.style.background = '#FFA500';
+                } else {
+                    circle.style.background = document.getElementById('timerColor').value;
+                    circle.style.animation = 'none';
+                }
+            }, 1000);
+        }
+
+        function previewPause() {
+            clearInterval(previewInterval);
+            previewInterval = null;
+            previewIsRunning = false;
+        }
+
+        function previewStop() {
+            console.log('Stop pressed - clearing intervals');
+            clearInterval(previewInterval);
+            previewInterval = null;
+            clearInterval(testInterval);
+            testInterval = null;
+            
+            previewIsRunning = false;
+            previewTimeLeft = 0;
+            previewTotalTime = 0;
+            
+            var circle = document.getElementById('timerCircle');
+            circle.style.background = document.getElementById('timerColor').value;
+            circle.style.animation = 'none';
+            
+            var progressCircle = document.getElementById('progressCircle');
+            progressCircle.style.strokeDasharray = 'none';
+            progressCircle.style.strokeDashoffset = '0';
+            
+            // Force update display without triggering any intervals
+            var minutes = parseInt(document.getElementById('minutes').value) || 0;
+            var seconds = parseInt(document.getElementById('seconds').value) || 0;
+            var totalSeconds = minutes * 60 + seconds;
+            document.getElementById('timerDisplay').textContent = formatTime(totalSeconds);
+            console.log('Stop completed - time set to:', formatTime(totalSeconds));
+        }
+
+        // TEST TIMER
         function testTimer() {
             if (testInterval) {
                 clearInterval(testInterval);
                 testInterval = null;
-                updateTimerDisplay(); // Reset to original time
-                const progressCircle = document.getElementById('progressCircle');
-                progressCircle.style.strokeDashoffset = '0'; // Reset progress ring
+                updateDisplay();
                 return;
             }
 
-            const minutes = parseInt(document.getElementById('minutes').value) || 0;
-            const seconds = parseInt(document.getElementById('seconds').value) || 0;
-            let timeLeft = minutes * 60 + seconds;
-            const totalTime = timeLeft;
+            var minutes = parseInt(document.getElementById('minutes').value) || 0;
+            var seconds = parseInt(document.getElementById('seconds').value) || 0;
+            var timeLeft = minutes * 60 + seconds;
+            var totalTime = timeLeft;
             
             if (timeLeft <= 0) {
-                // Production message instead of debug
-                alert('Please set a time greater than 0');
+                alert('Please set a time greater than 0!');
                 return;
             }
 
-            const progressCircle = document.getElementById('progressCircle');
-            const circumference = 2 * Math.PI * getCurrentRadius();
+            var progressCircle = document.getElementById('progressCircle');
+            var radius = getSizeConfig(currentSize).radius;
+            var circumference = 2 * Math.PI * radius;
             progressCircle.style.strokeDasharray = circumference;
-            progressCircle.style.strokeDashoffset = '0'; // Start with full ring
-            progressCircle.style.opacity = '1'; // Make sure it's visible
             
-            testInterval = setInterval(() => {
+            testInterval = setInterval(function() {
                 if (timeLeft <= 0) {
                     clearInterval(testInterval);
                     testInterval = null;
-                    progressCircle.style.strokeDashoffset = circumference; // Hide ring completely
-                    progressCircle.style.opacity = '0'; // Also fade out for good measure
                     return;
                 }
                 
                 timeLeft--;
                 document.getElementById('timerDisplay').textContent = formatTime(timeLeft);
                 
-                // Update progress ring - show REMAINING time, not elapsed
-                const remainingProgress = timeLeft / totalTime;
-                const offset = circumference * (1 - remainingProgress);
+                var progress = timeLeft / totalTime;
+                var offset = circumference * (1 - progress);
                 progressCircle.style.strokeDashoffset = offset;
                 
-                // Get warning times from UI
-                const warningMinutes = parseInt(document.getElementById('warningTime').value) || 1;
-                const criticalSeconds = parseInt(document.getElementById('criticalTime').value) || 10;
-                const warningSeconds = warningMinutes * 60;
+                var warningMinutes = parseInt(document.getElementById('warningTime').value) || 1;
+                var criticalSeconds = parseInt(document.getElementById('criticalTime').value) || 10;
+                var warningSeconds = warningMinutes * 60;
                 
-                // Change colors - INCLUDING BORDER with exact matching
-                const circle = document.getElementById('timerCircle');
+                var circle = document.getElementById('timerCircle');
                 if (timeLeft <= criticalSeconds) {
                     circle.style.background = '#FF4444';
-                    circle.style.borderColor = '#FF4444'; // Exact same red
                 } else if (timeLeft <= warningSeconds) {
                     circle.style.background = '#FFA500';
-                    circle.style.borderColor = '#FFA500'; // Exact same orange
                 } else {
                     circle.style.background = document.getElementById('timerColor').value;
-                    circle.style.borderColor = '#333'; // Default grey border
                 }
             }, 1000);
         }
 
-        // Get current radius based on size
-        function getCurrentRadius() {
-            if (currentSize === 'small') return 44; // Updated for closer fit
-            if (currentSize === 'large') return 92;
-            return 67; // medium
-        }
-
-        // Insert timer (placeholder)
+        // INSERT TIMER
         function insertTimer() {
-            alert('Timer ready to insert into PowerPoint!');
+            try {
+                var minutes = parseInt(document.getElementById('minutes').value) || 0;
+                var seconds = parseInt(document.getElementById('seconds').value) || 0;
+                var totalSeconds = minutes * 60 + seconds;
+                
+                if (totalSeconds <= 0) {
+                    console.log('Please set a time greater than 0!');
+                    return;
+                }
+                
+                var timerColor = document.getElementById('timerColor').value;
+                var textColor = document.getElementById('textColor').value;
+                var ringColor = document.getElementById('ringColor').value;
+                var warningTime = parseInt(document.getElementById('warningTime').value) || 1;
+                var criticalTime = parseInt(document.getElementById('criticalTime').value) || 10;
+                var size = getSizeConfig(currentSize);
+                
+                var timerHTML = createTimerHTML(totalSeconds, timerColor, textColor, ringColor, warningTime, criticalTime, size);
+                
+                if (typeof Office !== 'undefined' && Office.context && Office.context.document) {
+                    Office.context.document.setSelectedDataAsync(
+                        timerHTML,
+                        { coercionType: Office.CoercionType.Html },
+                        function(result) {
+                            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                                console.log('Timer successfully inserted!');
+                            } else {
+                                console.log('Error inserting: ' + (result.error ? result.error.message : 'Office API not available'));
+                            }
+                        }
+                    );
+                } else {
+                    console.log('Office API not available. Timer HTML created:');
+                    console.log(timerHTML);
+                }
+                
+            } catch (error) {
+                console.log('Error: ' + error.message);
+            }
         }
 
-        // Setup event listeners when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add input listeners
-            document.getElementById('minutes').addEventListener('input', updateTimerDisplay);
-            document.getElementById('seconds').addEventListener('input', updateTimerDisplay);
+        function createTimerHTML(totalSeconds, timerColor, textColor, ringColor, warningMinutes, criticalSeconds, size) {
+            var timerId = 'timer_' + Date.now();
+            var warningSeconds = warningMinutes * 60;
             
-            // Initialize
-            updateTimerDisplay();
+            var timerHTML = '<div style="width:' + (size.circleSize + 20) + 'px;height:' + (size.circleSize + 40) + 'px;position:relative;cursor:pointer;" onclick="toggleTimer' + timerId + '()">';
+            timerHTML += '<div id="circle' + timerId + '" style="width:' + size.circleSize + 'px;height:' + size.circleSize + 'px;border-radius:50%;background:' + timerColor + ';display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;margin:10px auto;transition:all 0.3s ease;">';
+            timerHTML += '<div style="font-size:' + size.fontSize + ';font-weight:bold;color:' + textColor + ';z-index:2;margin-bottom:4px;" id="display' + timerId + '">' + formatTime(totalSeconds) + '</div>';
+            
+            // Add controls under the time (always visible) - positioned to align with time digits
+            var controlWidth = Math.max(20, parseInt(size.fontSize) * 0.6);
+            var controlGap = Math.max(4, parseInt(size.fontSize) * 0.15);
+            var isLarge = size.circleSize >= 200;
+            var controlsWidth = isLarge ? parseInt(size.fontSize) * 2.8 : (controlWidth * 3 + controlGap * 2);
+            var justifyStyle = isLarge ? 'space-between' : 'center';
+            timerHTML += '<div class="timer-controls" style="display:flex;gap:' + controlGap + 'px;align-items:center;justify-content:' + justifyStyle + ';width:' + controlsWidth + 'px;margin:0 auto;">';
+            timerHTML += '<div onclick="event.stopPropagation();startTimer' + timerId + '()" style="background:none;border:none;color:rgba(255,255,255,0.8);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:' + size.controlSize + ';transition:color 0.2s ease;padding:2px;width:' + controlWidth + 'px;height:' + controlWidth + 'px;" title="Start">▶</div>';
+            timerHTML += '<div onclick="event.stopPropagation();pauseTimer' + timerId + '()" style="background:none;border:none;color:rgba(255,255,255,0.8);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:' + size.controlSize + ';transition:color 0.2s ease;padding:2px;width:' + controlWidth + 'px;height:' + controlWidth + 'px;" title="Pause">⏸</div>';
+            timerHTML += '<div onclick="event.stopPropagation();stopTimer' + timerId + '()" style="background:none;border:none;color:rgba(255,255,255,0.8);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:' + size.controlSize + ';transition:color 0.2s ease;padding:2px;width:' + controlWidth + 'px;height:' + controlWidth + 'px;" title="Stop">⏹</div>';
+            timerHTML += '</div>';
+            timerHTML += '</div>';
+            
+            // Add CSS for controls
+            timerHTML += '<style>';
+            timerHTML += '.timer-controls div:hover{color:#DCF98F !important;}';
+            timerHTML += '@keyframes pulse{0%{transform:scale(1);}50%{transform:scale(1.1);}100%{transform:scale(1);}}';
+            timerHTML += '</style>';
+            
+            timerHTML += '<script>';
+            timerHTML += 'var time' + timerId + '=' + totalSeconds + ';';
+            timerHTML += 'var total' + timerId + '=' + totalSeconds + ';';
+            timerHTML += 'var running' + timerId + '=false;';
+            timerHTML += 'var interval' + timerId + '=null;';
+            
+            // Toggle function (click on timer)
+            timerHTML += 'function toggleTimer' + timerId + '(){';
+            timerHTML += 'if(running' + timerId + '){pauseTimer' + timerId + '();}else{startTimer' + timerId + '();}';
+            timerHTML += '}';
+            
+            // Start function
+            timerHTML += 'function startTimer' + timerId + '(){';
+            timerHTML += 'if(!running' + timerId + '){';
+            timerHTML += 'running' + timerId + '=true;';
+            timerHTML += 'interval' + timerId + '=setInterval(function(){';
+            timerHTML += 'time' + timerId + '--;';
+            timerHTML += 'document.getElementById("display' + timerId + '").textContent=Math.floor(time' + timerId + '/60).toString().padStart(2,"0")+":"+(time' + timerId + '%60).toString().padStart(2,"0");';
+            timerHTML += 'if(time' + timerId + '<=0){';
+            timerHTML += 'clearInterval(interval' + timerId + ');';
+            timerHTML += 'running' + timerId + '=false;';
+            timerHTML += 'document.getElementById("circle' + timerId + '").style.background="#FF0000";';
+            timerHTML += 'document.getElementById("circle' + timerId + '").style.animation="pulse 1s infinite";';
+            timerHTML += '}else if(time' + timerId + '<=' + criticalSeconds + '){';
+            timerHTML += 'document.getElementById("circle' + timerId + '").style.background="#FF4444";';
+            timerHTML += '}else if(time' + timerId + '<=' + warningSeconds + '){';
+            timerHTML += 'document.getElementById("circle' + timerId + '").style.background="#FFA500";';
+            timerHTML += '}else{';
+            timerHTML += 'document.getElementById("circle' + timerId + '").style.background="' + timerColor + '";';
+            timerHTML += 'document.getElementById("circle' + timerId + '").style.animation="none";';
+            timerHTML += '}';
+            timerHTML += '},1000);';
+            timerHTML += '}';
+            timerHTML += '}';
+            
+            // Pause function
+            timerHTML += 'function pauseTimer' + timerId + '(){';
+            timerHTML += 'clearInterval(interval' + timerId + ');';
+            timerHTML += 'running' + timerId + '=false;';
+            timerHTML += '}';
+            
+            // Stop function
+            timerHTML += 'function stopTimer' + timerId + '(){';
+            timerHTML += 'clearInterval(interval' + timerId + ');';
+            timerHTML += 'running' + timerId + '=false;';
+            timerHTML += 'time' + timerId + '=total' + timerId + ';';
+            timerHTML += 'document.getElementById("display' + timerId + '").textContent=\'' + formatTime(totalSeconds) + '\';';
+            timerHTML += 'document.getElementById("circle' + timerId + '").style.background="' + timerColor + '";';
+            timerHTML += 'document.getElementById("circle' + timerId + '").style.animation="none";';
+            timerHTML += '}';
+            
+            timerHTML += '<\\/script>';
+            timerHTML += '<\\/div>';
+            
+            return timerHTML;
+        }
+
+        // EVENT LISTENERS
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('minutes').addEventListener('input', updateDisplay);
+            document.getElementById('seconds').addEventListener('input', updateDisplay);
+            
+            // Remove old event listeners
+            document.querySelectorAll('.preview-control-btn').forEach(function(btn) {
+                btn.replaceWith(btn.cloneNode(true));
+            });
+            
+            updateDisplay();
             updateColors();
         });
 
-        // Office.js initialization (only if Office is available)
+        // Office.js
         if (typeof Office !== 'undefined') {
-            Office.onReady((info) => {
-                // Clean production version - no debug messages
+            Office.onReady(function(info) {
+                console.log('Office ready');
             });
         }
     </script>
 </body>
-</html>
+</html> 
